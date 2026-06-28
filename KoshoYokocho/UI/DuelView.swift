@@ -35,7 +35,7 @@ struct DuelView: View {
 
     private var header: some View {
         VStack(alignment: .leading, spacing: 2) {
-            Text("🍛 \(session.title)")
+            Text("⚔️ \(session.title)")
                 .font(RetroTheme.font(15))
                 .foregroundColor(RetroTheme.accent)
             Text("対 \(session.opponentName)")
@@ -69,7 +69,7 @@ struct DuelView: View {
                     .foregroundColor(RetroTheme.ink)
                     .lineLimit(1)
                 Spacer()
-                Text("自信 \(value)/\(max)")
+                Text("体力 \(value)/\(max)")
                     .font(RetroTheme.font(11))
                     .foregroundColor(RetroTheme.ink.opacity(0.85))
             }

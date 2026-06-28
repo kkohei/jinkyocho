@@ -24,26 +24,16 @@ struct HUDView: View {
     private var topBar: some View {
         VStack(spacing: 6) {
             RetroWindow {
-                HStack(spacing: 14) {
-                    stat("教養", game.player.stats.kyoyo, bonus: game.player.buff?.kyoyoBonus)
-                    stat("目利き", game.player.stats.mekiki, bonus: game.player.buff?.mekikiBonus)
-                    stat("食通", game.player.stats.shokutsu, bonus: game.player.buff?.shokutsuBonus)
-                    Divider().frame(height: 22).overlay(RetroTheme.ink.opacity(0.3))
-                    VStack(spacing: 1) {
-                        Text("街Lv")
-                            .font(RetroTheme.font(9))
-                            .foregroundColor(RetroTheme.ink.opacity(0.7))
-                        Text("\(game.townLevel)")
-                            .font(RetroTheme.font(16))
-                            .foregroundColor(RetroTheme.accent)
-                    }
-                    VStack(spacing: 1) {
-                        Text("図鑑")
-                            .font(RetroTheme.font(9))
-                            .foregroundColor(RetroTheme.ink.opacity(0.7))
-                        Text("\(game.collectedBookCount)/\(game.books.count)")
-                            .font(RetroTheme.font(13))
-                            .foregroundColor(RetroTheme.ink)
+                VStack(spacing: 8) {
+                    hpBar
+                    HStack(spacing: 12) {
+                        stat("教養", game.player.stats.kyoyo, bonus: game.player.buff?.kyoyoBonus)
+                        stat("目利き", game.player.stats.mekiki, bonus: game.player.buff?.mekikiBonus)
+                        stat("食通", game.player.stats.shokutsu, bonus: game.player.buff?.shokutsuBonus)
+                        Divider().frame(height: 22).overlay(RetroTheme.ink.opacity(0.3))
+                        miniStat("復興", "\(game.townLevel)", tint: RetroTheme.accent)
+                        miniStat("撃破", "\(game.zombiesDefeated)", tint: RetroTheme.danger)
+                        miniStat("図鑑", "\(game.collectedBookCount)/\(game.books.count)", tint: RetroTheme.ink)
                     }
                 }
             }
@@ -51,6 +41,43 @@ struct HUDView: View {
             if let buff = game.player.buff {
                 buffGauge(buff)
             }
+        }
+    }
+
+    private var hpBar: some View {
+        let p = game.player
+        let color: Color = p.hpRatio > 0.5
+            ? Color(red: 0.45, green: 0.80, blue: 0.50)
+            : (p.hpRatio > 0.25 ? RetroTheme.accent : RetroTheme.danger)
+        return VStack(alignment: .leading, spacing: 3) {
+            HStack {
+                Text("体力")
+                    .font(RetroTheme.font(10))
+                    .foregroundColor(RetroTheme.ink.opacity(0.85))
+                Spacer()
+                Text("\(p.hp)/\(p.maxHP)")
+                    .font(RetroTheme.font(11))
+                    .foregroundColor(RetroTheme.ink)
+            }
+            GeometryReader { geo in
+                ZStack(alignment: .leading) {
+                    Rectangle().fill(Color.white.opacity(0.12))
+                    Rectangle().fill(color).frame(width: geo.size.width * p.hpRatio)
+                }
+            }
+            .frame(height: 9)
+            .overlay(Rectangle().stroke(RetroTheme.windowBorder.opacity(0.5), lineWidth: 1))
+        }
+    }
+
+    private func miniStat(_ name: String, _ value: String, tint: Color) -> some View {
+        VStack(spacing: 1) {
+            Text(name)
+                .font(RetroTheme.font(9))
+                .foregroundColor(RetroTheme.ink.opacity(0.7))
+            Text(value)
+                .font(RetroTheme.font(13))
+                .foregroundColor(tint)
         }
     }
 

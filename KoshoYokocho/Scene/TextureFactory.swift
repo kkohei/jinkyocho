@@ -92,6 +92,36 @@ enum TextureFactory {
         }
     }
 
+    /// ゾンビ（亡者）。色で強さを示す。
+    static func zombie(tint: ZombieTint) -> SKTexture {
+        let body: UIColor
+        switch tint {
+        case .pale:   body = UIColor(red: 0.55, green: 0.70, blue: 0.58, alpha: 1) // 青白い
+        case .rotten: body = UIColor(red: 0.40, green: 0.42, blue: 0.30, alpha: 1) // 黒ずみ
+        case .boss:   body = UIColor(red: 0.55, green: 0.22, blue: 0.24, alpha: 1) // 赤黒い
+        }
+        return make { ctx, _ in
+            // 体
+            fill(ctx, body, CGRect(x: 4, y: 2, width: 8, height: 9))
+            // 頭
+            fill(ctx, body, CGRect(x: 5, y: 9, width: 6, height: 4))
+            // うつろな目（赤）
+            fill(ctx, UIColor(red: 0.9, green: 0.2, blue: 0.2, alpha: 1), CGRect(x: 6, y: 10, width: 1, height: 1))
+            fill(ctx, UIColor(red: 0.9, green: 0.2, blue: 0.2, alpha: 1), CGRect(x: 9, y: 10, width: 1, height: 1))
+            // 突き出した腕
+            fill(ctx, body, CGRect(x: 3, y: 7, width: 2, height: 2))
+            fill(ctx, body, CGRect(x: 11, y: 7, width: 2, height: 2))
+            // 足
+            fill(ctx, body, CGRect(x: 5, y: 1, width: 2, height: 2))
+            fill(ctx, body, CGRect(x: 9, y: 1, width: 2, height: 2))
+            // ボスは角（禍々しさ）
+            if tint == .boss {
+                fill(ctx, UIColor(red: 0.85, green: 0.78, blue: 0.5, alpha: 1), CGRect(x: 4, y: 12, width: 1, height: 2))
+                fill(ctx, UIColor(red: 0.85, green: 0.78, blue: 0.5, alpha: 1), CGRect(x: 11, y: 12, width: 1, height: 2))
+            }
+        }
+    }
+
     static func bookPickup() -> SKTexture {
         make { ctx, s in
             fill(ctx, UIColor(red: 0.65, green: 0.20, blue: 0.22, alpha: 1), CGRect(x: 4, y: 3, width: 8, height: 10))

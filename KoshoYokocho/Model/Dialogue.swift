@@ -30,9 +30,8 @@ struct DialogueChoice: Identifiable {
 enum DialogueAction {
     case dismiss                 // 閉じるだけ
     case enterShop(String)       // 店に入る（shop id）
-    case startGourmetDuel(String)// グルメ対決を開始（相手店 id）
-    case eat(dish: String)       // 食べてバフ
-    case collectBook(String)     // 古本を図鑑登録（book id）
-    case saveGame                // 珈琲＝セーブ
+    case eat(dish: String)       // 食べて回復＋バフ
+    case collectBook(String)     // 稀覯本を図鑑登録（book id）
+    case saveGame                // 珈琲＝休息（全回復＋セーブ）
     case custom(() -> Void)      // その他
 }

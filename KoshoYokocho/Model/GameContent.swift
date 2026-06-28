@@ -30,11 +30,11 @@ enum GameContent {
             ),
             Shop(
                 id: "shop_vacant",
-                displayName: "空き店舗",
+                displayName: "占拠された店",
                 kind: .vacant,
                 isRestored: false,
                 restoredName: "甘味処 みかづき堂",
-                restoreHint: "カレー屋のグルメ対決に勝つと再生できそうだ。"
+                restoreHint: "店の前を守る大物の亡者（製本主）を祓えば、取り戻せそうだ。"
             ),
         ]
     }
@@ -71,11 +71,11 @@ enum GameContent {
 
     // MARK: - バフ定義
 
-    /// 老舗カレーを食べたときの探索バフ。
+    /// 腹ごしらえ（特製カレー）の戦闘バフ。食通＝攻撃力が伸びる。
     static func curryBuff() -> Buff {
         Buff(
             id: "buff_curry",
-            name: "老舗カレーの活力",
+            name: "腹ごしらえの活力",
             source: "莫迦楼スペシャルカレー",
             kyoyoBonus: 0,
             mekikiBonus: 1,

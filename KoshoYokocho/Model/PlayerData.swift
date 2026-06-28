@@ -25,6 +25,9 @@ enum Facing: String, Codable, CaseIterable {
 struct PlayerData: Codable, Equatable {
     var name: String
     var stats: Stats
+    /// 体力（戦闘間で持続。0 になると喫茶店へ戻される）。
+    var hp: Int
+    var maxHP: Int
     /// ワールド座標（シーン上の位置）。
     var x: CGFloat
     var y: CGFloat
@@ -37,10 +40,16 @@ struct PlayerData: Codable, Equatable {
         set { x = newValue.x; y = newValue.y }
     }
 
+    var hpRatio: Double { maxHP > 0 ? Double(hp) / Double(maxHP) : 0 }
+
+    static let baseMaxHP = 30
+
     static func newGame(spawn: CGPoint) -> PlayerData {
         PlayerData(
             name: "あるじ",
             stats: .starting,
+            hp: baseMaxHP,
+            maxHP: baseMaxHP,
             x: spawn.x,
             y: spawn.y,
             facing: .down,

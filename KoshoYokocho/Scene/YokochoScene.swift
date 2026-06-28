@@ -76,6 +76,10 @@ final class YokochoScene: SKScene {
                game.books.first(where: { $0.id == bookID })?.isCollected == true {
                 node.isHidden = true
             }
+            // 撃破済みのゾンビは最初から出さない。
+            if case .enemy = placement.kind, game.isEnemyCleared(placement.id) {
+                node.isHidden = true
+            }
         }
     }
 
@@ -88,6 +92,8 @@ final class YokochoScene: SKScene {
             texture = TextureFactory.catNPC()
         case .pickup:
             texture = TextureFactory.bookPickup()
+        case .enemy(let typeID):
+            texture = TextureFactory.zombie(tint: EnemyCatalog.type(typeID).tint)
         }
         let node = SKSpriteNode(texture: texture,
                                 size: CGSize(width: YokochoMap.tileSize,
@@ -97,6 +103,12 @@ final class YokochoScene: SKScene {
             let up = SKAction.moveBy(x: 0, y: 3, duration: 0.6)
             up.timingMode = .easeInEaseOut
             node.run(.repeatForever(.sequence([up, up.reversed()])))
+        }
+        // ゾンビはゆらゆら左右に揺れて不気味さを出す。
+        if case .enemy = placement.kind {
+            let sway = SKAction.rotate(byAngle: 0.12, duration: 0.5)
+            sway.timingMode = .easeInEaseOut
+            node.run(.repeatForever(.sequence([sway, sway.reversed(), sway.reversed(), sway])))
         }
         return node
     }
@@ -145,6 +157,24 @@ final class YokochoScene: SKScene {
         movePlayer(vector: vector, dt: dt)
         updateCamera()
         updateInteractPrompt()
+
+        if !inputLocked {
+            checkZombieContact()
+        }
+    }
+
+    /// ゾンビに接触したら自動で戦闘に入る。
+    private func checkZombieContact() {
+        let contactRange = YokochoMap.tileSize * 0.7
+        for placement in YokochoMap.placements {
+            guard case .enemy = placement.kind else { continue }
+            guard !game.isEnemyCleared(placement.id) else { continue }
+            let p = YokochoMap.worldPosition(of: placement.pos)
+            if hypot(p.x - player.position.x, p.y - player.position.y) <= contactRange {
+                game.startBattle(placement: placement)
+                return
+            }
+        }
     }
 
     private func movePlayer(vector: CGVector, dt: TimeInterval) {
@@ -253,6 +283,10 @@ final class YokochoScene: SKScene {
                game.books.first(where: { $0.id == bookID })?.isCollected == true {
                 continue
             }
+            // 撃破済みのゾンビは無視。
+            if case .enemy = placement.kind, game.isEnemyCleared(placement.id) {
+                continue
+            }
             let p = YokochoMap.worldPosition(of: placement.pos)
             let d = hypot(p.x - player.position.x, p.y - player.position.y)
             if d <= range, d < bestDist {
@@ -271,7 +305,9 @@ final class YokochoScene: SKScene {
         case .npc:
             return "調べる：看板猫"
         case .pickup:
-            return "調べる：落ちている古本"
+            return "調べる：救出できそうな本"
+        case .enemy(let typeID):
+            return "戦う：\(EnemyCatalog.type(typeID).name)"
         }
     }
 
@@ -302,7 +338,24 @@ final class YokochoScene: SKScene {
         }
     }
 
-    /// 店ノード（再生後の空き店舗など）のテクスチャを貼り替える。
+    /// 撃破したゾンビノードを消す。
+    func removeEnemyNode(placementID: String) {
+        placementNodes[placementID]?.run(.sequence([
+            .group([.fadeOut(withDuration: 0.3),
+                    .scale(to: 0.2, duration: 0.3),
+                    .rotate(byAngle: 1.2, duration: 0.3)]),
+            .removeFromParent(),
+        ]))
+    }
+
+    /// プレイヤーを指定ワールド座標へ即ワープ（敗北時の喫茶店送り）。
+    func warpPlayer(to worldPos: CGPoint) {
+        player.position = worldPos
+        player.update(facing: game.player.facing, moving: false)
+        cameraNode.position = worldPos
+    }
+
+    /// 店ノード（復興後の占拠店など）のテクスチャを貼り替える。
     func refreshShopNode(shopID: String) {
         guard let node = placementNodes[shopID] as? SKSpriteNode else { return }
         node.texture = shopTexture(for: shopID)

@@ -64,5 +64,6 @@ struct SaveSnapshot: Codable {
     var books: [BookEntry]
     var flags: [String: Bool]
     var townLevel: Int
+    var zombiesDefeated: Int
     var savedAt: Date
 }

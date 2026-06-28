@@ -49,14 +49,17 @@ struct DuelLogLine: Identifiable, Equatable {
     let isPlayer: Bool
 }
 
-/// 進行中のグルメ対決（HP バトル）。GameState から生成・参照される。
+/// 進行中の戦闘（ゾンビとの HP バトル）。GameState から生成・参照される。
 struct DuelSession: Identifiable, Equatable {
     let id = UUID()
     let kind: DuelKind
+    /// 敵（ゾンビ）の表示名。
     let opponentName: String
     let title: String
+    /// 倒したときに消す対象の placement id（フィールド上のゾンビ）。
+    let enemyPlacementID: String
 
-    // 自信（HP）
+    // 体力（HP）
     var playerHP: Int
     var playerMaxHP: Int
     var enemyHP: Int
@@ -65,6 +68,14 @@ struct DuelSession: Identifiable, Equatable {
     // 気合（必殺の燃料）
     var playerKiai: Int
     var playerMaxKiai: Int
+
+    // 敵の攻撃パラメータ
+    var enemyAtkLow: Int
+    var enemyAtkHigh: Int
+    var enemyBigLow: Int
+    var enemyBigHigh: Int
+    var enemyBigChance: Int
+    var enemyRewardShokutsu: Int
 
     var turn: Int = 1
     /// このターン、プレイヤーが「ととのえる」で防御中か。
@@ -78,4 +89,23 @@ struct DuelSession: Identifiable, Equatable {
     var playerHPRatio: Double { playerMaxHP > 0 ? Double(playerHP) / Double(playerMaxHP) : 0 }
     var enemyHPRatio: Double { enemyMaxHP > 0 ? Double(enemyHP) / Double(enemyMaxHP) : 0 }
     var canUseSpecial: Bool { playerKiai >= BattleCommand.specialCost && !isFinished }
+
+    /// プレイヤーの現在ステータスとゾンビから戦闘を生成する。
+    static func versus(enemy: EnemyType, placementID: String,
+                       playerHP: Int, playerMaxHP: Int,
+                       playerKiai: Int, playerMaxKiai: Int) -> DuelSession {
+        DuelSession(
+            kind: .gourmet,
+            opponentName: enemy.name,
+            title: "ゾンビ襲来！",
+            enemyPlacementID: placementID,
+            playerHP: playerHP, playerMaxHP: playerMaxHP,
+            enemyHP: enemy.maxHP, enemyMaxHP: enemy.maxHP,
+            playerKiai: playerKiai, playerMaxKiai: playerMaxKiai,
+            enemyAtkLow: enemy.atk.lowerBound, enemyAtkHigh: enemy.atk.upperBound,
+            enemyBigLow: enemy.big.lowerBound, enemyBigHigh: enemy.big.upperBound,
+            enemyBigChance: enemy.bigChance,
+            enemyRewardShokutsu: enemy.rewardShokutsu
+        )
+    }
 }
