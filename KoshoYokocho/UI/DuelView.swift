@@ -1,6 +1,8 @@
 //
 //  DuelView.swift
-//  古書横丁ものがたり — グルメ対決ウィンドウ（ターン制コマンド）
+//  古書横丁ものがたり — グルメ対決ウィンドウ（ドラクエ風 HP バトル）
+//
+//  互いの「自信（HP）」ゲージを削り合う。先に相手の自信を 0 にすれば勝ち。
 //
 
 import SwiftUI
@@ -15,7 +17,7 @@ struct DuelView: View {
             RetroWindow {
                 VStack(alignment: .leading, spacing: 12) {
                     header
-                    scoreBoard
+                    statusPane
                     logPane
                     Divider().overlay(RetroTheme.ink.opacity(0.3))
                     if session.isFinished {
@@ -36,34 +38,67 @@ struct DuelView: View {
             Text("🍛 \(session.title)")
                 .font(RetroTheme.font(15))
                 .foregroundColor(RetroTheme.accent)
-            Text("対 \(session.opponentName)　／　\(min(session.turn, session.totalTurns))品目・全\(session.totalTurns)品")
+            Text("対 \(session.opponentName)")
                 .font(RetroTheme.font(10))
                 .foregroundColor(RetroTheme.ink.opacity(0.7))
         }
     }
 
-    private var scoreBoard: some View {
-        HStack {
-            scoreCol(name: "あなた", score: session.playerScore, tint: RetroTheme.accent)
-            Text("対")
-                .font(RetroTheme.font(13))
-                .foregroundColor(RetroTheme.ink.opacity(0.6))
-            scoreCol(name: session.opponentName, score: session.opponentScore, tint: RetroTheme.danger)
+    // MARK: - 自信(HP)・気合ゲージ
+
+    private var statusPane: some View {
+        VStack(spacing: 8) {
+            // 相手の自信
+            gauge(label: session.opponentName,
+                  value: session.enemyHP, max: session.enemyMaxHP,
+                  ratio: session.enemyHPRatio, color: RetroTheme.danger)
+            // 自分の自信
+            gauge(label: "あなた",
+                  value: session.playerHP, max: session.playerMaxHP,
+                  ratio: session.playerHPRatio, color: Color(red: 0.45, green: 0.80, blue: 0.50))
+            // 気合
+            kiaiGauge
         }
-        .frame(maxWidth: .infinity)
     }
 
-    private func scoreCol(name: String, score: Int, tint: Color) -> some View {
-        VStack(spacing: 2) {
-            Text(name)
+    private func gauge(label: String, value: Int, max: Int, ratio: Double, color: Color) -> some View {
+        VStack(alignment: .leading, spacing: 3) {
+            HStack {
+                Text(label)
+                    .font(RetroTheme.font(11))
+                    .foregroundColor(RetroTheme.ink)
+                    .lineLimit(1)
+                Spacer()
+                Text("自信 \(value)/\(max)")
+                    .font(RetroTheme.font(11))
+                    .foregroundColor(RetroTheme.ink.opacity(0.85))
+            }
+            GeometryReader { geo in
+                ZStack(alignment: .leading) {
+                    Rectangle().fill(Color.white.opacity(0.12))
+                    Rectangle().fill(color)
+                        .frame(width: geo.size.width * ratio)
+                }
+            }
+            .frame(height: 10)
+            .overlay(Rectangle().stroke(RetroTheme.windowBorder.opacity(0.5), lineWidth: 1))
+        }
+    }
+
+    private var kiaiGauge: some View {
+        HStack(spacing: 6) {
+            Text("気合")
                 .font(RetroTheme.font(10))
                 .foregroundColor(RetroTheme.ink.opacity(0.8))
-                .lineLimit(1)
-            Text("\(score)")
-                .font(RetroTheme.font(24))
-                .foregroundColor(tint)
+            HStack(spacing: 3) {
+                ForEach(0..<session.playerMaxKiai, id: \.self) { i in
+                    Circle()
+                        .fill(i < session.playerKiai ? RetroTheme.accent : Color.white.opacity(0.15))
+                        .frame(width: 9, height: 9)
+                }
+            }
+            Spacer()
         }
-        .frame(maxWidth: .infinity)
     }
 
     private var logPane: some View {
@@ -80,7 +115,7 @@ struct DuelView: View {
                     }
                 }
             }
-            .frame(height: 96)
+            .frame(height: 84)
             .onChange(of: session.log.count) { _, _ in
                 if let last = session.log.last {
                     withAnimation { proxy.scrollTo(last.id, anchor: .bottom) }
@@ -89,16 +124,27 @@ struct DuelView: View {
         }
     }
 
+    // MARK: - コマンド
+
     private var commandPane: some View {
         VStack(spacing: 6) {
-            Text("コマンドを選べ")
+            Text("コマンド？")
                 .font(RetroTheme.font(11))
                 .foregroundColor(RetroTheme.ink.opacity(0.7))
                 .frame(maxWidth: .infinity, alignment: .leading)
-            ForEach(GourmetCommand.allCases) { command in
-                RetroButton(title: command.label, subtitle: command.hint) {
-                    game.playGourmet(command: command)
+
+            ForEach(BattleCommand.allCases) { command in
+                let disabled = command == .special && !session.canUseSpecial
+                RetroButton(
+                    title: command.label,
+                    subtitle: command.hint,
+                    tint: disabled ? RetroTheme.ink.opacity(0.3) : RetroTheme.accent
+                ) {
+                    guard !disabled else { return }
+                    game.battle(command: command)
                 }
+                .opacity(disabled ? 0.45 : 1)
+                .disabled(disabled)
             }
         }
     }

@@ -2,42 +2,44 @@
 //  DuelModels.swift
 //  古書横丁ものがたり — ターン制コマンド「対決」
 //
-//  v0 では開発が軽い「グルメ対決」だけを味見実装する。
-//  「戦闘」を読み替えたターン制：プレイヤーと相手が交互に手を選び、
-//  一品の完成度（スコア）を競う。
+//  v0 はグルメ対決のみ稼働。ドラクエ風の HP バトルとして実装する：
+//  お互いの「自信（HP）」を削り合い、先に相手の自信を 0 にした方が勝ち。
 //
 
 import Foundation
 
-/// 対決の種別。v0 はグルメのみ稼働。
+/// 対決の種別。v0 はグルメのみ。
 enum DuelKind: String, Codable {
-    case gourmet  // グルメ対決
+    case gourmet   // グルメ対決
     case appraisal // 目利き対決（後続フェーズ）
 }
 
-/// グルメ対決で選べるコマンド。
-enum GourmetCommand: String, CaseIterable, Identifiable, Codable {
-    case ingredient // 食材：素材を吟味して土台を作る
-    case recipe     // レシピ：構成を練って伸び幅を作る
-    case cook       // 調理：火入れで一気に仕上げる
+/// バトルコマンド（ドラクエ風）。
+enum BattleCommand: String, CaseIterable, Identifiable, Codable {
+    case attack   // たたかう：自慢の一皿で削る
+    case special  // とっておき：気合を使って大ダメージ
+    case defend   // ととのえる：被ダメ軽減＋気合回復
 
     var id: String { rawValue }
 
     var label: String {
         switch self {
-        case .ingredient: return "食材"
-        case .recipe:     return "レシピ"
-        case .cook:       return "調理"
+        case .attack:  return "たたかう"
+        case .special: return "とっておき"
+        case .defend:  return "ととのえる"
         }
     }
 
     var hint: String {
         switch self {
-        case .ingredient: return "素材を吟味（安定して加点）"
-        case .recipe:     return "構成を練る（次の調理が伸びる）"
-        case .cook:       return "火入れで仕上げ（レシピ後は大きく加点）"
+        case .attack:  return "自慢の一皿を出す（食通でダメージ）"
+        case .special: return "気合4を使う必殺の逸品（大ダメージ）"
+        case .defend:  return "味をととのえる（次の被ダメ半減・気合+3）"
         }
     }
+
+    /// 必殺に必要な気合。
+    static let specialCost = 4
 }
 
 /// 1ターンのログ行。
@@ -47,30 +49,33 @@ struct DuelLogLine: Identifiable, Equatable {
     let isPlayer: Bool
 }
 
-/// 進行中のグルメ対決セッション。GameState から生成・参照される。
+/// 進行中のグルメ対決（HP バトル）。GameState から生成・参照される。
 struct DuelSession: Identifiable, Equatable {
     let id = UUID()
     let kind: DuelKind
     let opponentName: String
-    let title: String          // 例：「カレーで勝負！」
-    let totalTurns: Int
+    let title: String
+
+    // 自信（HP）
+    var playerHP: Int
+    var playerMaxHP: Int
+    var enemyHP: Int
+    var enemyMaxHP: Int
+
+    // 気合（必殺の燃料）
+    var playerKiai: Int
+    var playerMaxKiai: Int
 
     var turn: Int = 1
-    var playerScore: Int = 0
-    var opponentScore: Int = 0
-    /// レシピ直後ボーナスの管理（プレイヤー）。
-    var playerRecipePrimed: Bool = false
+    /// このターン、プレイヤーが「ととのえる」で防御中か。
+    var playerDefending: Bool = false
+
     var log: [DuelLogLine] = []
     var isFinished: Bool = false
     /// 勝敗結果（終了後にセット）。
     var didWin: Bool? = nil
 
-    static func == (lhs: DuelSession, rhs: DuelSession) -> Bool {
-        lhs.id == rhs.id &&
-        lhs.turn == rhs.turn &&
-        lhs.playerScore == rhs.playerScore &&
-        lhs.opponentScore == rhs.opponentScore &&
-        lhs.isFinished == rhs.isFinished &&
-        lhs.log == rhs.log
-    }
+    var playerHPRatio: Double { playerMaxHP > 0 ? Double(playerHP) / Double(playerMaxHP) : 0 }
+    var enemyHPRatio: Double { enemyMaxHP > 0 ? Double(enemyHP) / Double(enemyMaxHP) : 0 }
+    var canUseSpecial: Bool { playerKiai >= BattleCommand.specialCost && !isFinished }
 }

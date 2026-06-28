@@ -280,85 +280,100 @@ final class GameState: ObservableObject {
 
     var collectedBookCount: Int { books.filter { $0.isCollected }.count }
 
-    // MARK: - 対決（グルメ）
+    // MARK: - 対決（グルメ＝ドラクエ風 HP バトル）
 
     func startGourmetDuel(opponentID: String) {
         let opponent = shops.first(where: { $0.id == opponentID })
         var session = DuelSession(
             kind: .gourmet,
             opponentName: opponent?.currentName ?? "謎の料理人",
-            title: "グルメ対決：一品勝負！",
-            totalTurns: 3
+            title: "グルメ対決！",
+            playerHP: 30, playerMaxHP: 30,
+            enemyHP: 36, enemyMaxHP: 36,
+            playerKiai: 3, playerMaxKiai: 6
         )
-        session.log.append(DuelLogLine(text: "「では——三品で競おう。先攻はあんたからだ。」", isPlayer: false))
+        session.log.append(DuelLogLine(
+            text: "「料理で勝負だ！ 互いの“自信”を削りあって、先に音を上げた方が負けだぜ。」",
+            isPlayer: false))
         activeDuel = session
     }
 
-    /// プレイヤーのコマンドを処理し、相手の手も解決して1ターン進める。
-    func playGourmet(command: GourmetCommand) {
-        guard var session = activeDuel, !session.isFinished else { return }
-        let effective = player.stats.applying(player.buff)
+    /// プレイヤーのコマンドを処理 → 相手の反撃 → 決着判定まで1ターン進める。
+    func battle(command: BattleCommand) {
+        guard var s = activeDuel, !s.isFinished else { return }
+        let eff = player.stats.applying(player.buff)
+        let atk = 6 + eff.shokutsu * 2   // 食通でダメージが伸びる（カレーのバフが効く）
+
+        s.playerDefending = false
 
         // --- プレイヤーの手 ---
-        var gained = 0
         switch command {
-        case .ingredient:
-            gained = 3 + effective.shokutsu / 2
-            session.playerRecipePrimed = false
-            session.log.append(DuelLogLine(text: "素材を吟味した。土台が整う（+\(gained)）", isPlayer: true))
-        case .recipe:
-            gained = 1 + effective.kyoyo / 2
-            session.playerRecipePrimed = true
-            session.log.append(DuelLogLine(text: "レシピを練った。次の調理が伸びる（+\(gained)）", isPlayer: true))
-        case .cook:
-            let base = 2 + effective.shokutsu
-            gained = session.playerRecipePrimed ? base * 2 : base
-            if session.playerRecipePrimed {
-                session.log.append(DuelLogLine(text: "レシピ通りに火入れ！ 会心の仕上がり（+\(gained)）", isPlayer: true))
-            } else {
-                session.log.append(DuelLogLine(text: "勢いで火入れした（+\(gained)）", isPlayer: true))
-            }
-            session.playerRecipePrimed = false
-        }
-        session.playerScore += gained
+        case .attack:
+            let dmg = max(1, atk + Int.random(in: -2...2))
+            s.enemyHP = max(0, s.enemyHP - dmg)
+            s.log.append(DuelLogLine(text: "あなたの自慢の一皿！ 相手の自信を \(dmg) けずった！", isPlayer: true))
 
-        // --- 相手の手（簡易AI：ターンに応じて手を変える） ---
-        let oppCommand: GourmetCommand
-        switch session.turn {
-        case 1: oppCommand = .ingredient
-        case 2: oppCommand = .recipe
-        default: oppCommand = .cook
-        }
-        var oppGained = 0
-        switch oppCommand {
-        case .ingredient:
-            oppGained = 4
-            session.log.append(DuelLogLine(text: "相手は素材を吟味した（+\(oppGained)）", isPlayer: false))
-        case .recipe:
-            oppGained = 2
-            session.log.append(DuelLogLine(text: "相手はレシピを練った（+\(oppGained)）", isPlayer: false))
-        case .cook:
-            oppGained = (session.turn >= 3) ? 9 : 5
-            session.log.append(DuelLogLine(text: "相手が一気に火入れ！（+\(oppGained)）", isPlayer: false))
-        }
-        session.opponentScore += oppGained
-
-        // --- ターン進行・決着 ---
-        if session.turn >= session.totalTurns {
-            session.isFinished = true
-            let win = session.playerScore >= session.opponentScore
-            session.didWin = win
-            if win {
-                session.log.append(DuelLogLine(text: "判定：あなたの勝ち！（\(session.playerScore) 対 \(session.opponentScore)）", isPlayer: true))
-            } else {
-                session.log.append(DuelLogLine(text: "判定：惜敗…（\(session.playerScore) 対 \(session.opponentScore)）", isPlayer: false))
+        case .special:
+            guard s.playerKiai >= BattleCommand.specialCost else {
+                // ボタンは無効化しているので通常ここには来ない。来ても安全に無視。
+                s.log.append(DuelLogLine(text: "気合が足りない！", isPlayer: true))
+                activeDuel = s
+                return
             }
+            s.playerKiai -= BattleCommand.specialCost
+            let dmg = max(1, Int(Double(atk) * 1.8) + eff.shokutsu + Int.random(in: -2...3))
+            s.enemyHP = max(0, s.enemyHP - dmg)
+            s.log.append(DuelLogLine(text: "とっておきの逸品を投入！ 自信を \(dmg) も削った！", isPlayer: true))
+
+        case .defend:
+            s.playerDefending = true
+            s.playerKiai = min(s.playerMaxKiai, s.playerKiai + 3)
+            s.log.append(DuelLogLine(text: "味をととのえ、隙をうかがう（気合+3）", isPlayer: true))
+        }
+
+        // --- 勝利判定（相手の自信 0）---
+        if s.enemyHP <= 0 {
+            s.isFinished = true
+            s.didWin = true
+            s.log.append(DuelLogLine(text: "相手が天を仰いだ…「参った、あんたの勝ちだ！」", isPlayer: true))
+            activeDuel = s
+            return
+        }
+
+        // --- 相手の反撃（簡易AI）---
+        enemyTurn(&s)
+
+        // 気合の自然回復。
+        s.playerKiai = min(s.playerMaxKiai, s.playerKiai + 1)
+
+        // --- 敗北判定（自分の自信 0）---
+        if s.playerHP <= 0 {
+            s.isFinished = true
+            s.didWin = false
+            s.log.append(DuelLogLine(text: "自信を失ってしまった…「次は負けないぞ」", isPlayer: false))
         } else {
-            session.turn += 1
-            session.log.append(DuelLogLine(text: "—— \(session.turn)品目 ——", isPlayer: false))
+            s.turn += 1
         }
 
-        activeDuel = session
+        activeDuel = s
+    }
+
+    /// 相手1手。たまに大技を出す。
+    private func enemyTurn(_ s: inout DuelSession) {
+        var dmg: Int
+        if Int.random(in: 0...9) < 2 {
+            dmg = Int.random(in: 10...14)
+            s.log.append(DuelLogLine(text: "相手の渾身の大皿が炸裂！", isPlayer: false))
+        } else {
+            dmg = Int.random(in: 5...9)
+            s.log.append(DuelLogLine(text: "相手が一皿くり出した", isPlayer: false))
+        }
+        if s.playerDefending {
+            dmg = max(1, dmg / 2)
+            s.log.append(DuelLogLine(text: "ととのえた構えで半減！", isPlayer: true))
+        }
+        s.playerHP = max(0, s.playerHP - dmg)
+        s.log.append(DuelLogLine(text: "あなたの自信を \(dmg) けずられた…", isPlayer: false))
     }
 
     /// 対決ウィンドウを閉じる。勝利していれば報酬処理。
