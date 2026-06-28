@@ -29,6 +29,22 @@ enum GameContent {
                 restoreHint: nil
             ),
             Shop(
+                id: "shop_weapon",
+                displayName: "武器屋 鉄頁堂（てっぺいどう）",
+                kind: .weapon,
+                isRestored: true,
+                restoredName: nil,
+                restoreHint: nil
+            ),
+            Shop(
+                id: "shop_grimoire",
+                displayName: "魔導書店 黯（くろ）",
+                kind: .grimoire,
+                isRestored: true,
+                restoredName: nil,
+                restoreHint: nil
+            ),
+            Shop(
                 id: "shop_vacant",
                 displayName: "占拠された店",
                 kind: .vacant,

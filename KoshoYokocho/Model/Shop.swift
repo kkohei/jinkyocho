@@ -9,9 +9,11 @@ import Foundation
 
 /// 店舗の種別。
 enum ShopKind: String, Codable {
-    case bookCafe   // 自分の古書喫茶（拠点・セーブ地点）
-    case curry      // 老舗カレー屋（グルメ対決）
-    case vacant     // 空き店舗（条件達成で再生）
+    case bookCafe   // 自分の古書喫茶（安全地帯・セーブ地点）
+    case curry      // 生き残りのカレー屋（腹ごしらえ＝回復＋バフ）
+    case weapon     // 武器屋（武器を購入）
+    case grimoire   // 魔導書店（魔導書を購入）
+    case vacant     // 占拠された店（ボス撃破で復興）
 }
 
 /// 横丁の一軒。

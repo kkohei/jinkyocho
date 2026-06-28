@@ -26,11 +26,11 @@ struct HUDView: View {
             RetroWindow {
                 VStack(spacing: 8) {
                     hpBar
-                    HStack(spacing: 12) {
+                    HStack(spacing: 9) {
                         stat("教養", game.player.stats.kyoyo, bonus: game.player.buff?.kyoyoBonus)
                         stat("目利き", game.player.stats.mekiki, bonus: game.player.buff?.mekikiBonus)
                         stat("食通", game.player.stats.shokutsu, bonus: game.player.buff?.shokutsuBonus)
-                        Divider().frame(height: 22).overlay(RetroTheme.ink.opacity(0.3))
+                        miniStat("古銭", "\(game.player.coins)", tint: RetroTheme.accent)
                         miniStat("復興", "\(game.townLevel)", tint: RetroTheme.accent)
                         miniStat("撃破", "\(game.zombiesDefeated)", tint: RetroTheme.danger)
                         miniStat("図鑑", "\(game.collectedBookCount)/\(game.books.count)", tint: RetroTheme.ink)

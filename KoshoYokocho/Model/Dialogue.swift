@@ -32,6 +32,7 @@ enum DialogueAction {
     case enterShop(String)       // 店に入る（shop id）
     case eat(dish: String)       // 食べて回復＋バフ
     case collectBook(String)     // 稀覯本を図鑑登録（book id）
+    case buyItem(String)         // 装備を購入/装備（item id）
     case saveGame                // 珈琲＝休息（全回復＋セーブ）
     case custom(() -> Void)      // その他
 }

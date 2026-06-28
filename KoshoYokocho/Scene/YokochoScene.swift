@@ -122,6 +122,10 @@ final class YokochoScene: SKScene {
             return TextureFactory.shopDoor(color: UIColor(red: 0.45, green: 0.30, blue: 0.55, alpha: 1))
         case .curry:
             return TextureFactory.shopDoor(color: UIColor(red: 0.85, green: 0.55, blue: 0.20, alpha: 1))
+        case .weapon:
+            return TextureFactory.shopDoor(color: UIColor(red: 0.55, green: 0.58, blue: 0.62, alpha: 1)) // 鋼の銀
+        case .grimoire:
+            return TextureFactory.shopDoor(color: UIColor(red: 0.25, green: 0.45, blue: 0.70, alpha: 1)) // 蒼
         case .vacant:
             return shop.isRestored
                 ? TextureFactory.shopDoor(color: UIColor(red: 0.90, green: 0.55, blue: 0.65, alpha: 1))

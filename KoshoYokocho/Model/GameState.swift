@@ -184,6 +184,12 @@ final class GameState: ObservableObject {
                     DialogueChoice(label: "立ち去る", action: .dismiss),
                 ]
             )
+        case .weapon:
+            activeDialogue = makeShopMenu(shop: shop, slot: .weapon,
+                header: "亡者を断つ得物だ。古銭と引き換えにどうだい？")
+        case .grimoire:
+            activeDialogue = makeShopMenu(shop: shop, slot: .grimoire,
+                header: "頁に宿る力……“とっておき”を強める一冊だよ。")
         case .vacant:
             if shop.isRestored {
                 activeDialogue = DialogueContent(
@@ -201,6 +207,63 @@ final class GameState: ObservableObject {
                 )
             }
         }
+    }
+
+    /// 武器屋・魔導書店の購入メニューを組み立てる（1ページで即コマンド表示）。
+    private func makeShopMenu(shop: Shop, slot: EquipSlot, header: String) -> DialogueContent {
+        var choices: [DialogueChoice] = []
+        for item in ItemCatalog.items(slot: slot) {
+            let owned = player.ownedItems.contains(item.id)
+            let equipped = (slot == .weapon ? player.equippedWeapon : player.equippedGrimoire) == item.id
+            let tag: String
+            if equipped { tag = "【装備中】" }
+            else if owned { tag = "【所持・装備する】" }
+            else { tag = "\(item.price)古銭" }
+            choices.append(DialogueChoice(
+                label: "\(item.name)（\(item.desc)）— \(tag)",
+                action: .buyItem(item.id)))
+        }
+        choices.append(DialogueChoice(label: "立ち去る", action: .dismiss))
+        return DialogueContent(
+            speaker: shop.currentName,
+            lines: ["\(header)　所持金：\(player.coins) 古銭"],
+            choices: choices)
+    }
+
+    /// 購入 or 装備。買えない場合はトーストで知らせ、店を開いたままにする。
+    func buyItem(id: String) {
+        guard let item = ItemCatalog.item(id) else { return }
+        let shopID = (item.slot == .weapon) ? "shop_weapon" : "shop_grimoire"
+
+        if player.ownedItems.contains(id) {
+            equip(item)
+            showToast("🛡 \(item.name)を装備した")
+        } else if player.coins >= item.price {
+            player.coins -= item.price
+            player.ownedItems.insert(id)
+            equip(item)
+            showToast("🪙 \(item.name)を購入して装備（残り \(player.coins) 古銭）")
+        } else {
+            showToast("古銭が足りない…（あと \(item.price - player.coins)）")
+        }
+        // 店メニューを開き直して続けて買えるように。
+        presentShopDialogue(shopID: shopID)
+    }
+
+    private func equip(_ item: ShopItem) {
+        switch item.slot {
+        case .weapon:   player.equippedWeapon = item.id
+        case .grimoire: player.equippedGrimoire = item.id
+        }
+    }
+
+    /// 装備中の武器による通常攻撃ボーナス。
+    var weaponAtkBonus: Int {
+        player.equippedWeapon.flatMap { ItemCatalog.item($0)?.atkBonus } ?? 0
+    }
+    /// 装備中の魔導書による必殺ボーナス。
+    var grimoireSpecialBonus: Int {
+        player.equippedGrimoire.flatMap { ItemCatalog.item($0)?.specialBonus } ?? 0
     }
 
     private func presentNPCDialogue(npcID: String) {
@@ -260,6 +323,9 @@ final class GameState: ObservableObject {
         case .collectBook(let id):
             activeDialogue = nil
             collectBook(id: id)
+        case .buyItem(let id):
+            activeDialogue = nil
+            buyItem(id: id)
         case .saveGame:
             activeDialogue = nil
             saveGame()
@@ -323,7 +389,8 @@ final class GameState: ObservableObject {
     func battle(command: BattleCommand) {
         guard var s = activeDuel, !s.isFinished else { return }
         let eff = player.stats.applying(player.buff)
-        let atk = 6 + eff.shokutsu * 2   // 食通でダメージが伸びる（腹ごしらえのバフが効く）
+        // 食通＝基礎攻撃、武器で加算。腹ごしらえのバフも効く。
+        let atk = 6 + eff.shokutsu * 2 + weaponAtkBonus
 
         s.playerDefending = false
 
@@ -342,9 +409,11 @@ final class GameState: ObservableObject {
                 return
             }
             s.playerKiai -= BattleCommand.specialCost
-            let dmg = max(1, Int(Double(atk) * 1.8) + eff.shokutsu + Int.random(in: -2...3))
+            // 魔導書で必殺が伸びる。
+            let dmg = max(1, Int(Double(atk) * 1.8) + eff.shokutsu + grimoireSpecialBonus + Int.random(in: -2...3))
             s.enemyHP = max(0, s.enemyHP - dmg)
-            s.log.append(DuelLogLine(text: "とっておきの一撃！ \(dmg) の大ダメージ！", isPlayer: true))
+            let flavor = grimoireSpecialBonus > 0 ? "魔導書が頁を開く——とっておきの一撃！" : "とっておきの一撃！"
+            s.log.append(DuelLogLine(text: "\(flavor) \(dmg) の大ダメージ！", isPlayer: true))
 
         case .defend:
             s.playerDefending = true
@@ -417,9 +486,10 @@ final class GameState: ObservableObject {
         flags["cleared_\(placementID)"] = true
         zombiesDefeated += 1
         player.stats.shokutsu += session.enemyRewardShokutsu
+        player.coins += session.enemyRewardCoins
         scene?.removeEnemyNode(placementID: placementID)
 
-        var msg = "🗡 \(session.opponentName)を撃破！（撃破数 \(zombiesDefeated)）"
+        var msg = "🗡 \(session.opponentName)を撃破！ 古銭+\(session.enemyRewardCoins)"
         if session.enemyRewardShokutsu > 0 { msg += " 食通+\(session.enemyRewardShokutsu)" }
         showToast(msg)
 

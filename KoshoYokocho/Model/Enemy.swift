@@ -21,6 +21,8 @@ struct EnemyType {
     let bigChance: Int
     /// 撃破時に上がる食通（強さ）。
     let rewardShokutsu: Int
+    /// 撃破時に得る古銭。
+    let rewardCoins: Int
     /// 見た目の色合い（プレースホルダ・ドット絵用）。
     let tint: ZombieTint
 }
@@ -37,17 +39,17 @@ enum EnemyCatalog {
         "z_weak": EnemyType(
             id: "z_weak", name: "古書ゾンビ", maxHP: 20,
             atk: 4...7, big: 8...11, bigChance: 1,
-            rewardShokutsu: 0, tint: .pale
+            rewardShokutsu: 0, rewardCoins: 10, tint: .pale
         ),
         "z_mid": EnemyType(
             id: "z_mid", name: "装丁鬼（そうていき）", maxHP: 34,
             atk: 5...9, big: 10...13, bigChance: 2,
-            rewardShokutsu: 1, tint: .rotten
+            rewardShokutsu: 1, rewardCoins: 18, tint: .rotten
         ),
         "z_guard": EnemyType(
             id: "z_guard", name: "製本主（せいほんしゅ）", maxHP: 48,
             atk: 6...10, big: 12...16, bigChance: 3,
-            rewardShokutsu: 1, tint: .boss
+            rewardShokutsu: 1, rewardCoins: 35, tint: .boss
         ),
     ]
 

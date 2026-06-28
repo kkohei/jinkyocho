@@ -76,6 +76,7 @@ struct DuelSession: Identifiable, Equatable {
     var enemyBigHigh: Int
     var enemyBigChance: Int
     var enemyRewardShokutsu: Int
+    var enemyRewardCoins: Int
 
     var turn: Int = 1
     /// このターン、プレイヤーが「ととのえる」で防御中か。
@@ -105,7 +106,8 @@ struct DuelSession: Identifiable, Equatable {
             enemyAtkLow: enemy.atk.lowerBound, enemyAtkHigh: enemy.atk.upperBound,
             enemyBigLow: enemy.big.lowerBound, enemyBigHigh: enemy.big.upperBound,
             enemyBigChance: enemy.bigChance,
-            enemyRewardShokutsu: enemy.rewardShokutsu
+            enemyRewardShokutsu: enemy.rewardShokutsu,
+            enemyRewardCoins: enemy.rewardCoins
         )
     }
 }

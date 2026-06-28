@@ -81,8 +81,12 @@ enum YokochoMap {
         Placement(id: "shop_vacant",   kind: .shop("shop_vacant"),   pos: GridPos(col: 12, row: 5)),
         // 看板猫（語り部）
         Placement(id: "npc_cat",       kind: .npc("npc_cat"),        pos: GridPos(col: 7, row: 10)),
+        // 武器屋：左下の建物の手前
+        Placement(id: "shop_weapon",   kind: .shop("shop_weapon"),   pos: GridPos(col: 3, row: 15)),
+        // 魔導書店：右下の建物の手前
+        Placement(id: "shop_grimoire", kind: .shop("shop_grimoire"), pos: GridPos(col: 11, row: 15)),
         // 救出する稀覯本（図鑑登録）
-        Placement(id: "pickup_book1",  kind: .pickup("book_neko"),   pos: GridPos(col: 3, row: 16)),
+        Placement(id: "pickup_book1",  kind: .pickup("book_neko"),   pos: GridPos(col: 6, row: 16)),
 
         // --- ゾンビ（接触で戦闘）---
         Placement(id: "zombie_a",     kind: .enemy("z_weak"),  pos: GridPos(col: 5, row: 11)),

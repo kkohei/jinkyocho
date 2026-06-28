@@ -28,6 +28,13 @@ struct PlayerData: Codable, Equatable {
     /// 体力（戦闘間で持続。0 になると喫茶店へ戻される）。
     var hp: Int
     var maxHP: Int
+    /// 所持金（古銭）。ゾンビ撃破で得る。
+    var coins: Int
+    /// 購入済みアイテム id。
+    var ownedItems: Set<String>
+    /// 装備中の武器・魔導書（item id）。
+    var equippedWeapon: String?
+    var equippedGrimoire: String?
     /// ワールド座標（シーン上の位置）。
     var x: CGFloat
     var y: CGFloat
@@ -50,6 +57,10 @@ struct PlayerData: Codable, Equatable {
             stats: .starting,
             hp: baseMaxHP,
             maxHP: baseMaxHP,
+            coins: 20,
+            ownedItems: [],
+            equippedWeapon: nil,
+            equippedGrimoire: nil,
             x: spawn.x,
             y: spawn.y,
             facing: .down,
