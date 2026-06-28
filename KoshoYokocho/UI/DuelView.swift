@@ -46,15 +46,27 @@ struct DuelView: View {
 
     // MARK: - 自信(HP)・気合ゲージ
 
-    /// 敵の大きな絵（DQ風）。撃破すると薄くなる。
+    /// 敵の大きな絵（DQ風）。額縁に入れて表示し、撃破すると薄くなる。
     private var enemyPortrait: some View {
-        Image(uiImage: TextureFactory.zombieImage(tint: session.enemyTint))
-            .interpolation(.none)
+        let img = TextureFactory.zombieImage(tint: session.enemyTint)
+        // ドット絵(小さい)は nearest でクッキリ、イラスト(大きい)は滑らかに。
+        let pixelArt = img.size.width <= 64
+        return Image(uiImage: img)
+            .interpolation(pixelArt ? .none : .medium)
             .resizable()
-            .frame(width: 104, height: 104)
+            .aspectRatio(contentMode: .fit)
+            .frame(height: 120)
             .frame(maxWidth: .infinity)
-            .shadow(color: RetroTheme.danger.opacity(0.3), radius: 8)
-            .opacity(session.isFinished && session.didWin == true ? 0.2 : 1)
+            .background(
+                RoundedRectangle(cornerRadius: 4)
+                    .fill(Color(red: 0.91, green: 0.86, blue: 0.74)) // 羊皮紙
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 4)
+                    .stroke(RetroTheme.windowBorder, lineWidth: 2)
+            )
+            .clipShape(RoundedRectangle(cornerRadius: 4))
+            .opacity(session.isFinished && session.didWin == true ? 0.25 : 1)
     }
 
     private var statusPane: some View {
