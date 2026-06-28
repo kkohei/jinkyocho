@@ -194,7 +194,7 @@ final class YokochoScene: SKScene {
     }
 
     private func updateCamera() {
-        guard let view = view else { return }
+        guard view != nil else { return }
         // 表示範囲の半分。scaleMode=.resizeFill なので scene.size がそのまま見える範囲。
         let halfW = size.width / 2
         let halfH = size.height / 2
