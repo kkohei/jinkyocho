@@ -385,6 +385,23 @@ final class GameState: ObservableObject {
         activeDuel = session
     }
 
+    /// 歩行中のランダムエンカウント。フィールドにノードは無い（placementID 空）。
+    func startRandomBattle() {
+        guard activeDuel == nil, activeDialogue == nil else { return }
+        moveVector = .zero
+        let enemy = EnemyCatalog.randomEncounter()
+        var session = DuelSession.versus(
+            enemy: enemy,
+            placementID: "",
+            playerHP: player.hp, playerMaxHP: player.maxHP,
+            playerKiai: 3, playerMaxKiai: 6
+        )
+        session.log.append(DuelLogLine(
+            text: "\(enemy.name) があらわれた！",
+            isPlayer: false))
+        activeDuel = session
+    }
+
     /// プレイヤーのコマンドを処理 → 敵の反撃 → 決着判定まで1ターン進める。
     func battle(command: BattleCommand) {
         guard var s = activeDuel, !s.isFinished else { return }
@@ -482,19 +499,21 @@ final class GameState: ObservableObject {
     }
 
     private func grantBattleVictory(_ session: DuelSession) {
-        let placementID = session.enemyPlacementID
-        flags["cleared_\(placementID)"] = true
         zombiesDefeated += 1
         player.stats.shokutsu += session.enemyRewardShokutsu
         player.coins += session.enemyRewardCoins
-        scene?.removeEnemyNode(placementID: placementID)
 
         var msg = "🗡 \(session.opponentName)を撃破！ 古銭+\(session.enemyRewardCoins)"
         if session.enemyRewardShokutsu > 0 { msg += " 食通+\(session.enemyRewardShokutsu)" }
         showToast(msg)
 
-        // 店を守るボスを倒したら、その店を復興する。
-        restoreShopIfPossible()
+        // フィールド配置の敵だけノードを消し、復興条件を判定する。
+        let placementID = session.enemyPlacementID
+        if !placementID.isEmpty {
+            flags["cleared_\(placementID)"] = true
+            scene?.removeEnemyNode(placementID: placementID)
+            restoreShopIfPossible()
+        }
     }
 
     /// 体力 0 で敗北。喫茶店（安全地帯）へ戻し、半分回復して立て直す。

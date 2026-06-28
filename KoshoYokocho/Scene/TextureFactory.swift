@@ -318,10 +318,15 @@ enum TextureFactory {
         return tex(zombieArt(tint), zombiePalette(tint))
     }
 
-    /// 戦闘画面に大きく出す敵の絵（SwiftUI 用 UIImage）。戦闘用アセットを優先。
-    static func zombieImage(tint: ZombieTint) -> UIImage {
-        if let a = assetImage("battle_zombie_\(tintName(tint))") { return a }
+    /// 戦闘画面に大きく出す敵の絵（SwiftUI 用 UIImage）。指定アセット優先、無ければ tint 描画。
+    static func battleImage(asset: String, tint: ZombieTint) -> UIImage {
+        if let a = assetImage(asset) { return a }
         return render(zombieArt(tint), zombiePalette(tint))
+    }
+
+    /// 戦闘背景（SwiftUI 用）。アセット battle_bg があれば返す。
+    static func battleBackgroundImage() -> UIImage? {
+        assetImage("battle_bg")
     }
 
     // MARK: - プレイヤー（4方向・歩行2フレーム）

@@ -1,8 +1,9 @@
 //
 //  DuelView.swift
-//  古書横丁ものがたり — グルメ対決ウィンドウ（ドラクエ風 HP バトル）
+//  古書横丁ものがたり — 戦闘画面（ドラクエ5風）
 //
-//  互いの「自信（HP）」ゲージを削り合う。先に相手の自信を 0 にすれば勝ち。
+//  背景の上に敵を大きく描き、下にメッセージ窓・ステータス・コマンド窓を並べる。
+//  被弾時は敵が赤く点滅して揺れ、自分が食らうと画面が赤く明滅する。
 //
 
 import SwiftUI
@@ -11,177 +12,204 @@ struct DuelView: View {
     @EnvironmentObject var game: GameState
     let session: DuelSession
 
+    @State private var enemyHit = false
+    @State private var playerHit = false
+
     var body: some View {
-        VStack {
-            Spacer()
-            RetroWindow {
-                VStack(alignment: .leading, spacing: 12) {
-                    header
-                    statusPane
-                    logPane
-                    Divider().overlay(RetroTheme.ink.opacity(0.3))
-                    if session.isFinished {
-                        resultControls
-                    } else {
-                        commandPane
-                    }
-                }
+        ZStack {
+            background
+            VStack(spacing: 0) {
+                enemyStage
+                Spacer(minLength: 8)
+                bottomPanel
             }
-            .padding(.horizontal, 12)
-            .padding(.bottom, 20)
-        }
-        .background(Color.black.opacity(0.4).ignoresSafeArea())
-    }
+            .padding(.horizontal, 10)
+            .padding(.vertical, 12)
 
-    private var header: some View {
-        VStack(alignment: .leading, spacing: 2) {
-            Text("⚔️ \(session.title)")
-                .font(RetroTheme.font(15))
-                .foregroundColor(RetroTheme.accent)
-            Text("対 \(session.opponentName)")
-                .font(RetroTheme.font(10))
-                .foregroundColor(RetroTheme.ink.opacity(0.7))
+            // 自分の被弾フラッシュ
+            Color.red.opacity(playerHit ? 0.28 : 0)
+                .ignoresSafeArea()
+                .allowsHitTesting(false)
+        }
+        .onChange(of: session.enemyHP) { old, new in
+            if new < old { flashEnemy() }
+        }
+        .onChange(of: session.playerHP) { old, new in
+            if new < old { flashPlayer() }
         }
     }
 
-    // MARK: - 自信(HP)・気合ゲージ
+    // MARK: - 背景
 
-    /// 敵の大きな絵（DQ風）。額縁に入れて表示し、撃破すると薄くなる。
-    private var enemyPortrait: some View {
-        let img = TextureFactory.zombieImage(tint: session.enemyTint)
-        // ドット絵(小さい)は nearest でクッキリ、イラスト(大きい)は滑らかに。
-        let pixelArt = img.size.width <= 64
-        return Image(uiImage: img)
-            .interpolation(pixelArt ? .none : .medium)
-            .resizable()
-            .aspectRatio(contentMode: .fit)
-            .frame(height: 120)
-            .frame(maxWidth: .infinity)
-            .background(
-                RoundedRectangle(cornerRadius: 4)
-                    .fill(Color(red: 0.91, green: 0.86, blue: 0.74)) // 羊皮紙
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 4)
-                    .stroke(RetroTheme.windowBorder, lineWidth: 2)
-            )
-            .clipShape(RoundedRectangle(cornerRadius: 4))
-            .opacity(session.isFinished && session.didWin == true ? 0.25 : 1)
-    }
-
-    private var statusPane: some View {
-        VStack(spacing: 8) {
-            enemyPortrait
-            // 相手の自信
-            gauge(label: session.opponentName,
-                  value: session.enemyHP, max: session.enemyMaxHP,
-                  ratio: session.enemyHPRatio, color: RetroTheme.danger)
-            // 自分の自信
-            gauge(label: "あなた",
-                  value: session.playerHP, max: session.playerMaxHP,
-                  ratio: session.playerHPRatio, color: Color(red: 0.45, green: 0.80, blue: 0.50))
-            // 気合
-            kiaiGauge
-        }
-    }
-
-    private func gauge(label: String, value: Int, max: Int, ratio: Double, color: Color) -> some View {
-        VStack(alignment: .leading, spacing: 3) {
-            HStack {
-                Text(label)
-                    .font(RetroTheme.font(11))
-                    .foregroundColor(RetroTheme.ink)
-                    .lineLimit(1)
-                Spacer()
-                Text("体力 \(value)/\(max)")
-                    .font(RetroTheme.font(11))
-                    .foregroundColor(RetroTheme.ink.opacity(0.85))
-            }
-            GeometryReader { geo in
-                ZStack(alignment: .leading) {
-                    Rectangle().fill(Color.white.opacity(0.12))
-                    Rectangle().fill(color)
-                        .frame(width: geo.size.width * ratio)
-                }
-            }
-            .frame(height: 10)
-            .overlay(Rectangle().stroke(RetroTheme.windowBorder.opacity(0.5), lineWidth: 1))
-        }
-    }
-
-    private var kiaiGauge: some View {
-        HStack(spacing: 6) {
-            Text("気合")
-                .font(RetroTheme.font(10))
-                .foregroundColor(RetroTheme.ink.opacity(0.8))
-            HStack(spacing: 3) {
-                ForEach(0..<session.playerMaxKiai, id: \.self) { i in
-                    Circle()
-                        .fill(i < session.playerKiai ? RetroTheme.accent : Color.white.opacity(0.15))
-                        .frame(width: 9, height: 9)
-                }
-            }
-            Spacer()
-        }
-    }
-
-    private var logPane: some View {
-        ScrollViewReader { proxy in
-            ScrollView {
-                VStack(alignment: .leading, spacing: 4) {
-                    ForEach(session.log) { line in
-                        Text(line.text)
-                            .font(RetroTheme.font(11))
-                            .foregroundColor(line.isPlayer ? RetroTheme.ink : RetroTheme.ink.opacity(0.75))
-                            .frame(maxWidth: .infinity,
-                                   alignment: line.isPlayer ? .leading : .trailing)
-                            .id(line.id)
-                    }
-                }
-            }
-            .frame(height: 84)
-            .onChange(of: session.log.count) { _, _ in
-                if let last = session.log.last {
-                    withAnimation { proxy.scrollTo(last.id, anchor: .bottom) }
-                }
+    private var background: some View {
+        Group {
+            if let bg = TextureFactory.battleBackgroundImage() {
+                Image(uiImage: bg)
+                    .resizable()
+                    .aspectRatio(contentMode: .fill)
+            } else {
+                LinearGradient(
+                    colors: [Color(red: 0.12, green: 0.10, blue: 0.18),
+                             Color(red: 0.06, green: 0.05, blue: 0.09)],
+                    startPoint: .top, endPoint: .bottom)
             }
         }
+        .ignoresSafeArea()
+        .overlay(Color.black.opacity(0.15).ignoresSafeArea())
     }
 
-    // MARK: - コマンド
+    // MARK: - 敵
 
-    private var commandPane: some View {
+    private var enemyStage: some View {
         VStack(spacing: 6) {
-            Text("コマンド？")
-                .font(RetroTheme.font(11))
-                .foregroundColor(RetroTheme.ink.opacity(0.7))
-                .frame(maxWidth: .infinity, alignment: .leading)
+            Text(session.opponentName)
+                .font(RetroTheme.font(14))
+                .foregroundColor(RetroTheme.ink)
+                .padding(.horizontal, 12).padding(.vertical, 4)
+                .background(RetroTheme.windowFill.opacity(0.85))
+                .overlay(RoundedRectangle(cornerRadius: 2)
+                    .stroke(RetroTheme.windowBorder.opacity(0.7), lineWidth: 1))
 
-            ForEach(BattleCommand.allCases) { command in
-                let disabled = command == .special && !session.canUseSpecial
-                RetroButton(
-                    title: command.label,
-                    subtitle: command.hint,
-                    tint: disabled ? RetroTheme.ink.opacity(0.3) : RetroTheme.accent
-                ) {
-                    guard !disabled else { return }
-                    game.battle(command: command)
+            let img = TextureFactory.battleImage(asset: session.enemyAsset, tint: session.enemyTint)
+            let pixelArt = img.size.width <= 64
+            Image(uiImage: img)
+                .interpolation(pixelArt ? .none : .medium)
+                .resizable()
+                .aspectRatio(contentMode: .fit)
+                .frame(height: 180)
+                .colorMultiply(enemyHit ? Color(red: 1, green: 0.5, blue: 0.5) : .white)
+                .opacity(session.isFinished && session.didWin == true ? 0.0 : 1)
+                .scaleEffect(session.isFinished && session.didWin == true ? 0.7 : 1)
+                .offset(x: enemyHit ? -7 : 0)
+                .shadow(color: .black.opacity(0.5), radius: 10, y: 6)
+                .animation(.easeInOut(duration: 0.12), value: enemyHit)
+                .animation(.easeOut(duration: 0.4), value: session.didWin)
+
+            // 敵HPゲージ
+            gauge(value: session.enemyHP, max: session.enemyMaxHP,
+                  ratio: session.enemyHPRatio, color: RetroTheme.danger)
+                .frame(maxWidth: 240)
+        }
+        .padding(.top, 14)
+    }
+
+    // MARK: - 下段（メッセージ・ステータス・コマンド）
+
+    private var bottomPanel: some View {
+        VStack(spacing: 8) {
+            messageWindow
+            statusWindow
+            if session.isFinished {
+                resultControls
+            } else {
+                commandWindow
+            }
+        }
+    }
+
+    private var messageWindow: some View {
+        RetroWindow {
+            VStack(alignment: .leading, spacing: 3) {
+                ForEach(session.log.suffix(3)) { line in
+                    Text(line.text)
+                        .font(RetroTheme.font(11))
+                        .foregroundColor(line.isPlayer ? RetroTheme.ink : RetroTheme.ink.opacity(0.85))
+                        .frame(maxWidth: .infinity, alignment: .leading)
                 }
-                .opacity(disabled ? 0.45 : 1)
-                .disabled(disabled)
+            }
+            .frame(height: 52, alignment: .top)
+        }
+    }
+
+    private var statusWindow: some View {
+        RetroWindow {
+            HStack(spacing: 12) {
+                VStack(alignment: .leading, spacing: 3) {
+                    HStack {
+                        Text("\(game.player.name) の体力")
+                            .font(RetroTheme.font(10)).foregroundColor(RetroTheme.ink)
+                        Spacer()
+                        Text("\(session.playerHP)/\(session.playerMaxHP)")
+                            .font(RetroTheme.font(11)).foregroundColor(RetroTheme.ink)
+                    }
+                    gauge(value: session.playerHP, max: session.playerMaxHP,
+                          ratio: session.playerHPRatio,
+                          color: Color(red: 0.45, green: 0.80, blue: 0.50))
+                }
+                VStack(spacing: 2) {
+                    Text("気合").font(RetroTheme.font(9)).foregroundColor(RetroTheme.ink.opacity(0.8))
+                    HStack(spacing: 3) {
+                        ForEach(0..<session.playerMaxKiai, id: \.self) { i in
+                            Circle()
+                                .fill(i < session.playerKiai ? RetroTheme.accent : Color.white.opacity(0.15))
+                                .frame(width: 8, height: 8)
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private var commandWindow: some View {
+        RetroWindow {
+            VStack(alignment: .leading, spacing: 6) {
+                Text("コマンド？")
+                    .font(RetroTheme.font(11)).foregroundColor(RetroTheme.ink.opacity(0.7))
+                ForEach(BattleCommand.allCases) { command in
+                    let disabled = command == .special && !session.canUseSpecial
+                    RetroButton(
+                        title: command.label,
+                        subtitle: command.hint,
+                        tint: disabled ? RetroTheme.ink.opacity(0.3) : RetroTheme.accent
+                    ) {
+                        guard !disabled else { return }
+                        game.battle(command: command)
+                    }
+                    .opacity(disabled ? 0.45 : 1)
+                    .disabled(disabled)
+                }
             }
         }
     }
 
     private var resultControls: some View {
-        VStack(spacing: 8) {
-            Text(session.didWin == true ? "🏆 あなたの勝ち！" : "…次は勝てる")
-                .font(RetroTheme.font(16))
-                .foregroundColor(session.didWin == true ? RetroTheme.accent : RetroTheme.danger)
-                .frame(maxWidth: .infinity)
-            RetroButton(title: "対決をおえる") {
-                game.finishDuel()
+        RetroWindow {
+            VStack(spacing: 8) {
+                Text(session.didWin == true ? "🏆 \(session.opponentName)を撃破した！" : "…目の前が暗くなった")
+                    .font(RetroTheme.font(14))
+                    .foregroundColor(session.didWin == true ? RetroTheme.accent : RetroTheme.danger)
+                    .frame(maxWidth: .infinity)
+                RetroButton(title: session.didWin == true ? "勝どきを上げる" : "退却する") {
+                    game.finishDuel()
+                }
             }
+        }
+    }
+
+    // MARK: - 共通ゲージ
+
+    private func gauge(value: Int, max: Int, ratio: Double, color: Color) -> some View {
+        GeometryReader { geo in
+            ZStack(alignment: .leading) {
+                Rectangle().fill(Color.black.opacity(0.4))
+                Rectangle().fill(color).frame(width: geo.size.width * ratio)
+            }
+        }
+        .frame(height: 9)
+        .overlay(Rectangle().stroke(RetroTheme.windowBorder.opacity(0.6), lineWidth: 1))
+    }
+
+    // MARK: - 被弾エフェクト
+
+    private func flashEnemy() {
+        enemyHit = true
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.18) { enemyHit = false }
+    }
+
+    private func flashPlayer() {
+        withAnimation(.easeIn(duration: 0.06)) { playerHit = true }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.14) {
+            withAnimation(.easeOut(duration: 0.2)) { playerHit = false }
         }
     }
 }

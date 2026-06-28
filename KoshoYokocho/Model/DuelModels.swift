@@ -60,6 +60,8 @@ struct DuelSession: Identifiable, Equatable {
     let enemyPlacementID: String
     /// 戦闘画面に出す敵の見た目。
     let enemyTint: ZombieTint
+    /// 戦闘画面に出す画像アセット名（無ければ tint でコード描画）。
+    let enemyAsset: String
 
     // 体力（HP）
     var playerHP: Int
@@ -103,6 +105,7 @@ struct DuelSession: Identifiable, Equatable {
             title: "ゾンビ襲来！",
             enemyPlacementID: placementID,
             enemyTint: enemy.tint,
+            enemyAsset: enemy.battleAsset,
             playerHP: playerHP, playerMaxHP: playerMaxHP,
             enemyHP: enemy.maxHP, enemyMaxHP: enemy.maxHP,
             playerKiai: playerKiai, playerMaxKiai: playerMaxKiai,

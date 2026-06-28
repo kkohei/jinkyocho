@@ -23,6 +23,10 @@ final class YokochoScene: SKScene {
     private var lastUpdateTime: TimeInterval = 0
     private let moveSpeed: CGFloat = 96   // pt/秒
 
+    // ランダムエンカウント（歩いた距離が閾値を超えると戦闘）
+    private var encounterWalk: CGFloat = 0
+    private var encounterThreshold: CGFloat = 220
+
     /// 調べられる距離（タイル換算）。
     private var interactRange: CGFloat { YokochoMap.tileSize * 1.3 }
 
@@ -169,7 +173,28 @@ final class YokochoScene: SKScene {
 
         if !inputLocked {
             checkZombieContact()
+            checkRandomEncounter()
         }
+    }
+
+    /// 一定距離歩くとランダム戦闘。店の近く（安全地帯）では出ない。
+    private func checkRandomEncounter() {
+        guard encounterWalk >= encounterThreshold else { return }
+        if isNearAnyShop() { return }   // 店先では発生しない
+        encounterWalk = 0
+        encounterThreshold = CGFloat.random(in: 150...340)
+        game.startRandomBattle()
+    }
+
+    /// いずれかの店の入口の近く（1.4タイル以内）にいるか。
+    private func isNearAnyShop() -> Bool {
+        let safe = YokochoMap.tileSize * 1.4
+        for placement in YokochoMap.placements {
+            guard case .shop = placement.kind else { continue }
+            let p = YokochoMap.worldPosition(of: placement.pos)
+            if hypot(p.x - player.position.x, p.y - player.position.y) <= safe { return true }
+        }
+        return false
     }
 
     /// ゾンビに接触したら自動で戦闘に入る。
@@ -197,13 +222,16 @@ final class YokochoScene: SKScene {
             let dx = nx * moveSpeed * CGFloat(dt)
             let dy = ny * moveSpeed * CGFloat(dt)
 
-            var pos = player.position
+            let oldPos = player.position
+            var pos = oldPos
             // 軸ごとに当たり判定（壁ずりできるように）。
             let tryX = CGPoint(x: pos.x + dx, y: pos.y)
             if canStand(at: tryX) { pos.x = tryX.x }
             let tryY = CGPoint(x: pos.x, y: pos.y + dy)
             if canStand(at: tryY) { pos.y = tryY.y }
             player.position = pos
+            // 実際に動いた距離をエンカウントカウンタに加算。
+            encounterWalk += hypot(pos.x - oldPos.x, pos.y - oldPos.y)
 
             // 向きは支配的な軸で決める。
             let facing: Facing
