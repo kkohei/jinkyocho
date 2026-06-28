@@ -46,8 +46,20 @@ struct DuelView: View {
 
     // MARK: - 自信(HP)・気合ゲージ
 
+    /// 敵の大きな絵（DQ風）。撃破すると薄くなる。
+    private var enemyPortrait: some View {
+        Image(uiImage: TextureFactory.zombieImage(tint: session.enemyTint))
+            .interpolation(.none)
+            .resizable()
+            .frame(width: 104, height: 104)
+            .frame(maxWidth: .infinity)
+            .shadow(color: RetroTheme.danger.opacity(0.3), radius: 8)
+            .opacity(session.isFinished && session.didWin == true ? 0.2 : 1)
+    }
+
     private var statusPane: some View {
         VStack(spacing: 8) {
+            enemyPortrait
             // 相手の自信
             gauge(label: session.opponentName,
                   value: session.enemyHP, max: session.enemyMaxHP,
