@@ -98,10 +98,39 @@ enum TextureFactory {
         ctx.fill(CGRect(x: x, y: y, width: w, height: h))
     }
 
+    // MARK: - アセット読み込み（Assets.xcassets が優先、無ければコード描画）
+    //
+    //  Assets.xcassets に下記の名前で PNG（ドット絵）を追加すると、自動でそれを使う。
+    //  画像が無い名前はコード描画にフォールバックするので、未用意でも動く。
+    //
+    //  期待する名前：
+    //   タイル      : tile_road, tile_wall
+    //   店の入口    : door_bookcafe, door_curry, door_weapon, door_grimoire,
+    //                door_vacant, door_vacant_restored
+    //   住人・拾得  : npc_cat, item_book
+    //   ゾンビ(field): zombie_pale, zombie_rotten, zombie_boss
+    //   ゾンビ(戦闘): battle_zombie_pale, battle_zombie_rotten, battle_zombie_boss
+    //   プレイヤー  : player_down_0/1, player_up_0/1, player_right_0/1, player_left_0/1
+    //                （player_left_* が無ければ right を左右反転して使用）
+
+    /// アセットがあれば nearest テクスチャを返す。
+    private static func asset(_ name: String) -> SKTexture? {
+        guard let img = UIImage(named: name) else { return nil }
+        let t = SKTexture(image: img)
+        t.filteringMode = .nearest
+        return t
+    }
+
+    /// アセット画像（SwiftUI 用）。
+    private static func assetImage(_ name: String) -> UIImage? {
+        UIImage(named: name)
+    }
+
     // MARK: - タイル（陰影つき）
 
     static func roadTile() -> SKTexture {
-        proc(16) { ctx, _ in
+        if let a = asset("tile_road") { return a }
+        return proc(16) { ctx, _ in
             px(ctx, 0xA8966A, 0, 0, 16, 16)                 // 目地（暗）
             // 2×2 の大きめの石畳。各石に上ハイライト・下シャドウ。
             let cells = [(1, 1), (8, 1), (1, 8), (8, 8)]
@@ -115,7 +144,8 @@ enum TextureFactory {
     }
 
     static func wallTile() -> SKTexture {
-        proc(16) { ctx, _ in
+        if let a = asset("tile_wall") { return a }
+        return proc(16) { ctx, _ in
             px(ctx, 0xB86B4A, 0, 0, 16, 16)                 // 壁（テラコッタ）
             // レンガの目地（横線）
             for y in stride(from: 2, to: 12, by: 3) {
@@ -140,6 +170,11 @@ enum TextureFactory {
 
     // MARK: - 店の入口（暖簾＋木戸）
 
+    /// 名前付きアセットがあればそれを、無ければ色指定の暖簾を描く。
+    static func doorTexture(name: String, color: UIColor) -> SKTexture {
+        asset(name) ?? shopDoor(color: color)
+    }
+
     static func shopDoor(color: UIColor) -> SKTexture {
         proc(16) { ctx, _ in
             // 木戸
@@ -160,7 +195,8 @@ enum TextureFactory {
     }
 
     static func vacantDoor() -> SKTexture {
-        proc(16) { ctx, _ in
+        if let a = asset("door_vacant") { return a }
+        return proc(16) { ctx, _ in
             px(ctx, 0x4A4A4E, 2, 0, 12, 15)                 // シャッター
             for y in stride(from: 1, to: 15, by: 2) {
                 px(ctx, 0x35353A, 2, y, 12, 1)
@@ -175,7 +211,8 @@ enum TextureFactory {
     // MARK: - 住人・拾得物（ドット絵）
 
     static func catNPC() -> SKTexture {
-        tex([
+        if let a = asset("npc_cat") { return a }
+        return tex([
             "                ",
             "   X        X   ",
             "   XX      XX   ",
@@ -196,7 +233,8 @@ enum TextureFactory {
     }
 
     static func bookPickup() -> SKTexture {
-        tex([
+        if let a = asset("item_book") { return a }
+        return tex([
             "                ",
             "                ",
             "    XXXXXXXX    ",
@@ -267,13 +305,23 @@ enum TextureFactory {
         return rows
     }
 
-    static func zombie(tint: ZombieTint) -> SKTexture {
-        tex(zombieArt(tint), zombiePalette(tint))
+    private static func tintName(_ tint: ZombieTint) -> String {
+        switch tint {
+        case .pale:   return "pale"
+        case .rotten: return "rotten"
+        case .boss:   return "boss"
+        }
     }
 
-    /// 戦闘画面に大きく出す敵の絵（SwiftUI 用 UIImage）。
+    static func zombie(tint: ZombieTint) -> SKTexture {
+        if let a = asset("zombie_\(tintName(tint))") { return a }
+        return tex(zombieArt(tint), zombiePalette(tint))
+    }
+
+    /// 戦闘画面に大きく出す敵の絵（SwiftUI 用 UIImage）。戦闘用アセットを優先。
     static func zombieImage(tint: ZombieTint) -> UIImage {
-        render(zombieArt(tint), zombiePalette(tint))
+        if let a = assetImage("battle_zombie_\(tintName(tint))") { return a }
+        return render(zombieArt(tint), zombiePalette(tint))
     }
 
     // MARK: - プレイヤー（4方向・歩行2フレーム）
@@ -340,12 +388,30 @@ enum TextureFactory {
     ]
 
     static func playerTexture(facing: Facing, frame: Int) -> SKTexture {
+        // アセット優先（player_<dir>_<frame>）。left が無ければ right を反転。
+        if let a = asset("player_\(facing.rawValue)_\(frame)") { return a }
+        if facing == .left, let r = asset("player_right_\(frame)") {
+            let t = SKTexture(image: flippedImage(r)); t.filteringMode = .nearest; return t
+        }
         let legs = frame == 0 ? legsA : legsB
         switch facing {
         case .down:  return tex(bodyDown + legs)
         case .up:    return tex(bodyUp + legs)
         case .right: return tex(bodyRight + legs)
         case .left:  return tex(bodyRight + legs, flipH: true)
+        }
+    }
+
+    /// テクスチャを左右反転した UIImage を作る（left アセット代用）。
+    private static func flippedImage(_ texture: SKTexture) -> UIImage {
+        let img = UIImage(cgImage: texture.cgImage())
+        let size = img.size
+        let renderer = UIGraphicsImageRenderer(size: size)
+        return renderer.image { c in
+            let ctx = c.cgContext
+            ctx.translateBy(x: size.width, y: 0)
+            ctx.scaleBy(x: -1, y: 1)
+            img.draw(in: CGRect(origin: .zero, size: size))
         }
     }
 
